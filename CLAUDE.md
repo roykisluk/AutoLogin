@@ -41,8 +41,8 @@ install.sh            writes the host registration (run once per Mac, and after 
 - Capture on a trusted click on a button or Enter in an input; the pending login sits in
   `chrome.storage.session` (memory only) for ≤5 min and the bar shows on the next page in that
   tab (or the same page after 3 s). No offer if it equals what is already saved.
-- Autofill: once per site per 10 min (`chrome.storage.local`), so a wrong saved password can't
-  lock an account; skipped while a 2FA (`autocomplete=one-time-code`) field is visible; only when
+- Autofill: always fills; auto-submits at most once per site per minute (`chrome.storage.local`),
+  so a wrong saved password can't loop and lock an account (inside the minute: fill only); skipped while a 2FA (`autocomplete=one-time-code`) field is visible; only when
   every saved field is on the page. Its own click is untrusted, so it never re-captures itself.
 
 ## Known limits
@@ -97,3 +97,9 @@ install.sh            writes the host registration (run once per Mac, and after 
   Tested on live TAU (stubbed): null-submit record pressed #loginButton; Enter capture saved
   #loginButton. Note: chrome-devtools MCP `sourcePath` only reads files under the Roybox workspace —
   copy content.js there temporarily to inject it.
+- 2026-10-21 — "Doesn't work at all" right after the submit fix. Log showed every `get` returning
+  `found`; root cause was the 10-min cooldown from the 09:08 autofill, which skipped *filling* too.
+  Fix: cooldown now gates only the submit, and is 1 min (a wrong-password loop resubmits within
+  seconds, so a minute stops it). Tested on live TAU (stubbed): 30 s after a submit → filled, nothing
+  sent; 61 s → filled + submitted + cooldown renewed. Lesson: check the log before suspecting code —
+  `found` + no fill = content-side gate.

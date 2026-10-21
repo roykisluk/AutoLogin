@@ -1,7 +1,7 @@
 // Runs on every https page that shows a password field.
 // - Saved login for this host -> fill it and submit (once per 10 min).
 // - You log in by hand -> offer to save what you typed (bar on the next page, or here after 3 s).
-const COOLDOWN_MS = 10 * 60 * 1000; // a wrong saved password can't lock the account
+const COOLDOWN_MS = 60 * 1000; // auto-submit at most once a minute: a wrong saved password can't loop and lock the account
 const OTP = 'input[autocomplete=one-time-code]';
 const visible = (el) => el && el.offsetParent !== null;
 const ask = (msg) => chrome.runtime.sendMessage(msg);
@@ -22,13 +22,14 @@ function loginFields() {
     visible(el) && !el.matches(OTP) && ['text', 'email', 'tel', 'number', 'password'].includes(el.type));
 }
 
-function fill(rec) {
+function fill(rec, submit) {
   for (const [sel, value] of Object.entries(rec.fields)) {
     const el = document.querySelector(sel);
     el.value = value;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
+  if (!submit) return;
   const pw = document.querySelector(Object.keys(rec.fields).find((s) => document.querySelector(s).type === 'password'));
   const btn = (rec.submit && document.querySelector(rec.submit)) || (pw && defaultButton(pw));
   if (btn) btn.click();
@@ -42,11 +43,12 @@ async function autofill() {
   const res = await ask({ op: 'get' });
   if (res && res.error) console.log('[autologin]', res.error);
   if (!res || !res.record) return;
-  const key = 'last:' + location.host;
-  if (Date.now() - ((await chrome.storage.local.get(key))[key] || 0) < COOLDOWN_MS) return;
   if (!Object.keys(res.record.fields).every((s) => visible(document.querySelector(s)))) return;
-  await chrome.storage.local.set({ [key]: Date.now() });
-  fill(res.record);
+  const key = 'last:' + location.host;
+  const submit = Date.now() - ((await chrome.storage.local.get(key))[key] || 0) >= COOLDOWN_MS;
+  if (submit) await chrome.storage.local.set({ [key]: Date.now() });
+  else console.log('[autologin] submitted under a minute ago: filled only, press Enter yourself');
+  fill(res.record, submit);
 }
 
 // Capture a hand-typed login at the moment you submit it.
