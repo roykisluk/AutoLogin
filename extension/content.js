@@ -8,9 +8,15 @@ const ask = (msg) => chrome.runtime.sendMessage(msg);
 const selector = (el) =>
   el.id ? '#' + CSS.escape(el.id) : el.name ? `${el.tagName.toLowerCase()}[name="${CSS.escape(el.name)}"]` : null;
 
+const loginPassword = () =>
+  [...document.querySelectorAll('input[type=password]')].find((el) => visible(el) && !el.matches(OTP));
+// The button Enter would press: first visible submit-like button in the form (or page).
+const defaultButton = (pw) =>
+  [...(pw.form || document).querySelectorAll('button[type=submit], input[type=submit], button:not([type])')].find(visible);
+
 // Visible text-like inputs of the login form (or the whole page when the form has no <form>).
 function loginFields() {
-  const pw = [...document.querySelectorAll('input[type=password]')].find((el) => visible(el) && !el.matches(OTP));
+  const pw = loginPassword();
   if (!pw) return [];
   return [...(pw.form || document).querySelectorAll('input')].filter((el) =>
     visible(el) && !el.matches(OTP) && ['text', 'email', 'tel', 'number', 'password'].includes(el.type));
@@ -23,10 +29,12 @@ function fill(rec) {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  const btn = rec.submit && document.querySelector(rec.submit);
   const pw = document.querySelector(Object.keys(rec.fields).find((s) => document.querySelector(s).type === 'password'));
+  const btn = (rec.submit && document.querySelector(rec.submit)) || (pw && defaultButton(pw));
   if (btn) btn.click();
   else if (pw && pw.form) pw.form.requestSubmit();
+  else if (pw) for (const type of ['keydown', 'keypress', 'keyup']) // last resort: Enter in the password field
+    pw.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
 }
 
 async function autofill() {
@@ -45,6 +53,7 @@ async function autofill() {
 function capture(button) {
   const fields = loginFields();
   if (!fields.some((el) => el.type === 'password' && el.value)) return;
+  button = button || defaultButton(loginPassword()); // Enter pressed: remember the button it stands for
   const rec = { fields: {}, submit: button && selector(button) };
   for (const el of fields) { const s = selector(el); if (s && el.value) rec.fields[s] = el.value; }
   ask({ op: 'pending', record: rec });

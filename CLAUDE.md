@@ -11,8 +11,10 @@ extension/bg.js       relays to the native host; host name always from the sende
 host.py               native messaging host: get/set records in the encrypted iCloud file
 ~/Library/Mobile Documents/com~apple~CloudDocs/AutoLogin/logins.json.age
                       {host: record}, age-encrypted (iCloud Drive/AutoLogin)
-~/Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts/com.roykisluk.autologin.json
-                      registers host.py for extension ID nifjbhcjkndmghlhinopidbnbjoehbjm
+install.sh            writes the host registration (run once per Mac, and after moving the folder)
+~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.roykisluk.autologin.json
+                      registers host.py for extension ID nifjbhcjkndmghlhinopidbnbjoehbjm.
+                      Brave reads it from CHROME's folder, not BraveSoftware/… (see lesson log)
 ```
 
 ## Rules
@@ -29,7 +31,7 @@ host.py               native messaging host: get/set records in the encrypted iC
 - `AUTOLOGIN_STORE` env var overrides the file path, for tests only.
 - Extension is loaded unpacked (brave://extensions → Developer mode → Load unpacked →
   `extension/`). Its ID comes from the folder path: **moving the folder changes the ID**
-  and breaks `allowed_origins` in the host JSON. Unpacked ID = sha256(abs path)[:32] mapped 0-f → a-p.
+  and breaks `allowed_origins` in the host JSON — rerun `install.sh`. Unpacked ID = sha256(abs path)[:32] mapped 0-f → a-p.
 - "Never" list (sites never to offer saving for) is in the extension's `chrome.storage.local`.
 
 ## How it decides
@@ -77,3 +79,21 @@ host.py               native messaging host: get/set records in the encrypted iC
   item (old item deleted, other entries kept), `age-key` refused as a host; one round trip at the
   real iCloud path (test file deleted). The classifier blocked `security dump-keychain` as
   credential exploration — check single items by name instead.
+- 2026-10-21 — Saves never reached iCloud in Brave. Symptom: no helper log at all, even via a
+  logging launcher outside ~/Downloads; extension console (after adding a log line) said
+  "Specified native messaging host not found." Registration in
+  `~/Library/Application Support/BraveSoftware/Brave-Browser/NativeMessagingHosts/` was valid and
+  identical in shape to the Claude extension's. Root cause: this Brave build reads user-level hosts
+  from `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/`; a copy there made the
+  helper launch at once. Fix: `install.sh` writes only there. Also moved the project from
+  ~/Downloads/Roybox/Tools to ~/AutoLogin (Roy's call) — the ID changed with the path.
+  Debug tools kept: content.js console-logs helper errors; host.py logs every call (op + host +
+  outcome, never values) to ~/Library/Logs/autologin.log. Claude in Chrome must be switched to
+  Brave (`switch_browser`) to test there; it cannot open brave:// pages.
+- 2026-10-21 — Autofilled TAU but didn't submit. Root cause: Roy logged in with Enter, so the saved
+  record had `submit: null`, and TAU's inputs have no `<form>` to `requestSubmit()`. Fix: capture via
+  Enter records the default button (first visible submit-like button in the form/page); fill falls
+  back saved button → default button → form.requestSubmit() → synthetic Enter on the password field.
+  Tested on live TAU (stubbed): null-submit record pressed #loginButton; Enter capture saved
+  #loginButton. Note: chrome-devtools MCP `sourcePath` only reads files under the Roybox workspace —
+  copy content.js there temporarily to inject it.
