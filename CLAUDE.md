@@ -120,3 +120,13 @@ install.sh            writes the host registration (run once per Mac, and after 
   Moodle page (RelayState), which starts a fresh SSO. (3) A second try had the saved token refused
   inside the host (renewal then failed reading Brave's cookie DB); token works from Terminal and
   `env -i`, cause unknown. Error now logged in full (`saved token refused (<errorcode>)`).
+- 2026-11-12 16:31 — **Works end to end**: Brave opened moodle.runi.ac.il/2027/my/ with no session →
+  host `found` → dashboard, no Duo. Lessons from the failed tries before it:
+  (1) RUNI sets `tool_mobile_autologinmintimebetweenreq = 3600`: **one key per hour** (read with
+  `tool_mobile_get_config`). Failed tries don't reset it. Don't test the host by hand before Roy logs in.
+  (2) The F5 "לצערנו משהו השתבש" page also appeared with the extension leaving the tab alone, so it is
+  RUNI's gateway (after many aborted logins), not this code. Now bg.js never touches the tab on failure.
+  (3) Bare moodle.runi.ac.il → /2026 (last year's site), which needs its own token (Keychain
+  `runi-moodle-autologin-2026`, made from a live Brave /2026 session; not made yet). /2027 still uses
+  the old unsuffixed item.
+  (4) Reloading an unpacked extension without brave://extensions: quit + reopen Brave (tabs came back).

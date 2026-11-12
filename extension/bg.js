@@ -13,7 +13,7 @@ async function handle(msg, sender) {
   const pending = (await chrome.storage.session.get(tab))[tab];
   const { never = [] } = await chrome.storage.local.get('never');
 
-  if (msg.op === 'get') return native({ op: 'get', host });
+  if (msg.op === 'get') return (await runiPending[sender.tab.id]) ? {} : native({ op: 'get', host });
   if (msg.op === 'pending') {
     if (!never.includes(host)) await chrome.storage.session.set({ [tab]: { host, record: msg.record, ts: Date.now() } });
     return {};
@@ -37,15 +37,18 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
 });
 
 // RUNI Moodle: its SSO redirect goes to auth.runi.ac.il with the Moodle page in RelayState.
-// Catch it before the Duo page loads and log in with the Moodle app token instead (host.py 'moodle').
-// On failure, reopen the Moodle page so the normal login runs, and stay out of the way for a minute (no loop).
-let runiSkipUntil = 0; // ponytail: lives in the worker; if Brave unloads it, the next try just asks again
+// Ask the host for a one-time autologin URL (host.py 'moodle', from the Moodle app token) and go
+// there. The SSO page keeps loading meanwhile and is never interrupted, so on failure the normal
+// login just carries on. While an attempt runs, 'get' for
+// that tab waits for it, so autofill can't submit the RUNI password and send a Duo push.
+const runiPending = {}; // tabId -> Promise<boolean> (true = autologin URL opened)
 chrome.webRequest.onBeforeRequest.addListener((d) => {
   const back = new URL(d.url).searchParams.get('RelayState') || '';
-  if (d.tabId < 0 || Date.now() < runiSkipUntil || !back.startsWith('https://moodle.runi.ac.il/')) return;
-  chrome.tabs.update(d.tabId, { url: chrome.runtime.getURL('runi.html') });
-  native({ op: 'moodle', url: back }).then((r) => {
-    if (!r.url) { runiSkipUntil = Date.now() + 60000; console.log('RUNI autologin failed:', r.error); }
-    chrome.tabs.update(d.tabId, { url: r.url || back }); // back: Moodle starts a fresh SSO (a reused SAML URL gives F5 errorcode 19)
+  if (d.tabId < 0 || !back.startsWith('https://moodle.runi.ac.il/')) return;
+  runiPending[d.tabId] = native({ op: 'moodle', url: back }).then((r) => {
+    if (r.url) chrome.tabs.update(d.tabId, { url: r.url });
+    else console.log('RUNI autologin failed:', r.error);
+    setTimeout(() => delete runiPending[d.tabId], 30000);
+    return !!r.url;
   });
 }, { urls: ['https://auth.runi.ac.il/saml/*'], types: ['main_frame'] });
