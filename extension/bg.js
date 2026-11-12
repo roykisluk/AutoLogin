@@ -35,3 +35,17 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   handle(msg, sender).then(reply, (e) => reply({ error: String(e) }));
   return true;
 });
+
+// RUNI Moodle: its SSO redirect goes to auth.runi.ac.il with the Moodle page in RelayState.
+// Catch it before the Duo page loads and log in with the Moodle app token instead (host.py 'moodle').
+// On failure, let the normal login through and stay out of the way for a minute (no loop).
+let runiSkipUntil = 0; // ponytail: lives in the worker; if Brave unloads it, the next try just asks again
+chrome.webRequest.onBeforeRequest.addListener((d) => {
+  const back = new URL(d.url).searchParams.get('RelayState') || '';
+  if (d.tabId < 0 || Date.now() < runiSkipUntil || !back.startsWith('https://moodle.runi.ac.il/')) return;
+  chrome.tabs.update(d.tabId, { url: chrome.runtime.getURL('runi.html') });
+  native({ op: 'moodle', url: back }).then((r) => {
+    if (!r.url) { runiSkipUntil = Date.now() + 60000; console.log('RUNI autologin failed:', r.error); }
+    chrome.tabs.update(d.tabId, { url: r.url || d.url });
+  });
+}, { urls: ['https://auth.runi.ac.il/saml/*'], types: ['main_frame'] });

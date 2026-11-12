@@ -8,7 +8,9 @@ stored in one age-encrypted file in iCloud Drive; its key is only in this Mac's 
 ```
 extension/content.js  runs on every https page with a password field: autofill, capture, save bar
 extension/bg.js       relays to the native host; host name always from the sender URL
-host.py               native messaging host: get/set records in the encrypted iCloud file
+host.py               native messaging host: get/set records in the encrypted iCloud file;
+                      op 'moodle' runs MoodleScraper/materials/moodle_autologin.py --print (RUNI, no Duo)
+extension/runi.html   "Logging in…" page shown while that runs
 ~/Library/Mobile Documents/com~apple~CloudDocs/AutoLogin/logins.json.age
                       {host: record}, age-encrypted (iCloud Drive/AutoLogin)
 install.sh            writes the host registration (run once per Mac, and after moving the folder)
@@ -103,3 +105,12 @@ install.sh            writes the host registration (run once per Mac, and after 
   seconds, so a minute stops it). Tested on live TAU (stubbed): 30 s after a submit → filled, nothing
   sent; 61 s → filled + submitted + cooldown renewed. Lesson: check the log before suspecting code —
   `found` + no fill = content-side gate.
+- 2026-11-12 — RUNI Moodle without Duo. RUNI Moodle shows no login page of its own: with no session
+  it 303s straight to `auth.runi.ac.il/saml/idp/...?RelayState=<moodle url>`, then F5/Duo, so a
+  content script can't catch it. bg.js now watches that request (`webRequest`, observe only), switches
+  the tab to runi.html before Duo loads, and host.py's `moodle` op returns a one-time autologin URL
+  from the Moodle app token (see MoodleScraper `moodle_autologin.py`; one key per ~6 min). On failure
+  the original SSO URL loads and RUNI is skipped for 1 min, so it can't loop. Switching away early also
+  stops this extension's own my.runi.ac.il autofill from sending a Duo push. Tested: host op with a real
+  native message (URL returned in ~1 s, non-RUNI url refused). **Not tested:** the loaded extension
+  end to end (needs reload in brave://extensions, then open Moodle with an expired session).

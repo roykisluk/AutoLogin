@@ -3,6 +3,7 @@
 
 Messages: {"op": "get", "host": h} -> {"record": {...}} or {}
           {"op": "set", "host": h, "record": {...}} -> {"ok": true}
+          {"op": "moodle", "url": u} -> {"url": autologin URL} : RUNI Moodle login from the app token, no Duo
 A record is {"fields": {css selector: value}, "submit": css selector or null}.
 The file holds {host: record}. Its age key lives only in the login Keychain
 (service "autologin", account "age-key") and reaches age through a pipe, never argv or disk.
@@ -15,6 +16,20 @@ STORE = Path(os.environ.get('AUTOLOGIN_STORE',  # override is for tests only
              Path.home() / 'Library/Mobile Documents/com~apple~CloudDocs/AutoLogin/logins.json.age'))
 AGE = '/opt/homebrew/bin/age'  # Brave starts us with a bare PATH
 LOG = Path.home() / 'Library/Logs/autologin.log'
+MOODLE = Path.home() / 'Downloads/Roybox/Tools/MoodleScraper/materials'
+RUNI = 'https://moodle.runi.ac.il/'
+
+
+def moodle(url):
+    """One-time autologin URL for RUNI Moodle (moodle_autologin.py: app token -> autologin key)."""
+    if not url.startswith(RUNI) or len(url.split('/')) < 5:
+        return {'error': 'not a RUNI Moodle url'}
+    site = 'moodle.runi.ac.il/' + url.split('/')[3]  # e.g. moodle.runi.ac.il/2027
+    p = subprocess.run(['/opt/homebrew/bin/uv', 'run', '-q', '--with-requirements', '../requirements.txt',
+                        'python3', 'moodle_autologin.py', site, url, '--print'],
+                       cwd=MOODLE, capture_output=True, text=True, timeout=40)
+    out = p.stdout.strip()
+    return {'url': out} if p.returncode == 0 and out.startswith(RUNI) else {'error': (p.stderr or out).strip()[-200:]}
 
 
 def keychain(account):
@@ -77,9 +92,11 @@ def get(host):
 def main():
     n = struct.unpack('=I', sys.stdin.buffer.read(4))[0]
     msg = json.loads(sys.stdin.buffer.read(n))
-    host = msg['host']
+    host = msg.get('host', 'moodle.runi.ac.il')
     try:
-        if not host.replace('.', '').replace('-', '').replace(':', '').isalnum() or host == 'age-key':
+        if msg['op'] == 'moodle':
+            out = moodle(msg['url'])
+        elif not host.replace('.', '').replace('-', '').replace(':', '').isalnum() or host == 'age-key':
             out = {'error': 'bad host'}
         elif msg['op'] == 'get':
             rec = get(host)
