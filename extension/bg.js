@@ -52,3 +52,4 @@ chrome.webRequest.onBeforeRequest.addListener((d) => {
     return !!r.url;
   });
 }, { urls: ['https://auth.runi.ac.il/saml/*'], types: ['main_frame'] });
+

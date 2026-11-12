@@ -130,3 +130,14 @@ install.sh            writes the host registration (run once per Mac, and after 
   `runi-moodle-autologin-2026`, made from a live Brave /2026 session; not made yet). /2027 still uses
   the old unsuffixed item.
   (4) Reloading an unpacked extension without brave://extensions: quit + reopen Brave (tabs came back).
+- 2026-11-12 — Bare/typo RUNI Moodle addresses → this year's site (Roy's call), via a static
+  declarativeNetRequest rule file `extension/runi_rules.json` (root of moodle.runi.ac.il, www., or
+  the swapped runi.moodle.ac.il, any scheme/query → /2027/my/; other paths on www./swapped hosts →
+  same path on moodle.runi.ac.il; /2026/... and /2027/... untouched). Year hard-coded: change it when
+  RUNI opens /2028. Tested live: all 4 variants landed on /2027.
+  **Trap:** a webRequest listener for the new hosts never fired after a Brave restart. Brave re-read
+  the manifest (permissions "active") but did not *grant* the added host permissions; only the
+  Reload button in brave://extensions grants them (Secure Preferences → granted_permissions shows it).
+  The page's buttons aren't reachable by AppleScript/AX or Claude in Chrome: Roy has to click it.
+  **Open:** right after a Brave restart, one SSO redirect went by with no `moodle` call and the RUNI
+  password was autofilled (Duo push), likely the service worker still asleep. Not reproduced.

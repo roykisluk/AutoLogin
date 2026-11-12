@@ -3,12 +3,50 @@
   "name": "AutoLogin (Keychain)",
   "version": "1.0",
   "description": "Fills and submits login forms on any https site from an encrypted file in iCloud Drive.",
-  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
-  "action": { "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" }, "default_title": "AutoLogin" },
-  "permissions": ["nativeMessaging", "storage", "webRequest"],
-  "host_permissions": ["https://auth.runi.ac.il/*"],
-  "background": { "service_worker": "bg.js" },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    },
+    "default_title": "AutoLogin"
+  },
+  "permissions": [
+    "nativeMessaging",
+    "storage",
+    "webRequest",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "*://*.runi.ac.il/*",
+    "*://*.runi.moodle.ac.il/*"
+  ],
+  "background": {
+    "service_worker": "bg.js"
+  },
   "content_scripts": [
-    { "matches": ["https://*/*"], "js": ["content.js"], "run_at": "document_idle" }
-  ]
+    {
+      "matches": [
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "runi",
+        "enabled": true,
+        "path": "runi_rules.json"
+      }
+    ]
+  }
 }

@@ -1,0 +1,34 @@
+[
+ {
+  "id": 1,
+  "priority": 1,
+  "action": {
+   "type": "redirect",
+   "redirect": {
+    "url": "https://moodle.runi.ac.il/2027/my/"
+   }
+  },
+  "condition": {
+   "regexFilter": "^https?://(www\\.)?(moodle\\.runi|runi\\.moodle)\\.ac\\.il/?(\\?.*)?$",
+   "resourceTypes": [
+    "main_frame"
+   ]
+  }
+ },
+ {
+  "id": 2,
+  "priority": 1,
+  "action": {
+   "type": "redirect",
+   "redirect": {
+    "regexSubstitution": "https://moodle.runi.ac.il/\\2"
+   }
+  },
+  "condition": {
+   "regexFilter": "^https?://(www\\.moodle\\.runi|(?:www\\.)?runi\\.moodle)\\.ac\\.il/(.+)$",
+   "resourceTypes": [
+    "main_frame"
+   ]
+  }
+ }
+]
