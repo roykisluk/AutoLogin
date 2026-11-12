@@ -114,3 +114,9 @@ install.sh            writes the host registration (run once per Mac, and after 
   stops this extension's own my.runi.ac.il autofill from sending a Duo push. Tested: host op with a real
   native message (URL returned in ~1 s, non-RUNI url refused). **Not tested:** the loaded extension
   end to end (needs reload in brave://extensions, then open Moodle with an expired session).
+- 2026-11-12 — First live try failed. (1) `autologinkeygenerationlockout`: the host test 2 min earlier
+  had used the key → test the host only when Roy isn't about to log in. (2) Fallback reloaded the
+  original SAML URL → F5 "לצערנו משהו השתבש" (errorcode 19, a reused SSO request). Fix: fall back to the
+  Moodle page (RelayState), which starts a fresh SSO. (3) A second try had the saved token refused
+  inside the host (renewal then failed reading Brave's cookie DB); token works from Terminal and
+  `env -i`, cause unknown. Error now logged in full (`saved token refused (<errorcode>)`).

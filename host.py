@@ -29,7 +29,7 @@ def moodle(url):
                         'python3', 'moodle_autologin.py', site, url, '--print'],
                        cwd=MOODLE, capture_output=True, text=True, timeout=40)
     out = p.stdout.strip()
-    return {'url': out} if p.returncode == 0 and out.startswith(RUNI) else {'error': (p.stderr or out).strip()[-200:]}
+    return {'url': out} if p.returncode == 0 and out.startswith(RUNI) else {'error': ' | '.join(l.strip() for l in (p.stderr or out).splitlines() if l.strip())[:500]}
 
 
 def keychain(account):
